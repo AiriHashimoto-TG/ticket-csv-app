@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Shopify埋め込みアプリ用：Client IDを入れる -->
+<meta name="shopify-api-key" content="__SHOPIFY_CLIENT_ID__">
+<script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+<title>チケット入稿CSVジェネレーター（Matrixify）</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --panel:#ffffff; --line:#e2e5ea; --ink:#1f2430; --sub:#6b7280;
+    --accent:#2f6bff; --accent-d:#1e4fd8; --ok:#0f9d58; --warn:#c0392b; --chip:#eef2ff;
+    --radius:12px; --shadow:0 1px 3px rgba(20,30,60,.08),0 8px 24px rgba(20,30,60,.05);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.6;font-size:14px}
+  header{background:linear-gradient(135deg,#1e2a4a,#2f6bff);color:#fff;padding:20px 24px}
+  header h1{margin:0;font-size:19px;font-weight:700;letter-spacing:.2px}
+  header p{margin:6px 0 0;font-size:12.5px;opacity:.9}
+  .wrap{max-width:1120px;margin:0 auto;padding:20px 16px 80px}
+  .grid{display:grid;grid-template-columns:1fr 380px;gap:18px;align-items:start}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden}
+  .card>h2{margin:0;padding:13px 16px;font-size:14.5px;background:#fbfcfe;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:8px}
+  .card>h2 .n{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;
+    align-items:center;justify-content:center;font-size:12px;font-weight:700}
+  .card .body{padding:16px}
+  label{display:block;font-size:12px;color:var(--sub);margin:0 0 4px;font-weight:600}
+  input[type=text],input[type=number],input[type=date],input[type=datetime-local],input[type=time],textarea,select{
+    width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;
+    font-family:inherit;background:#fff;color:var(--ink)}
+  textarea{resize:vertical;min-height:80px;font-size:12.5px}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,107,255,.12)}
+  .row{display:grid;gap:12px;margin-bottom:12px}
+  .row.c2{grid-template-columns:1fr 1fr}
+  .row.c3{grid-template-columns:1fr 1fr 1fr}
+  .row.c4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:560px){.row.c2,.row.c3,.row.c4{grid-template-columns:1fr}}
+  .hint{font-size:11.5px;color:var(--sub);margin-top:3px}
+  button{cursor:pointer;font-family:inherit;border:none;border-radius:8px;font-weight:600;font-size:13px;
+    padding:9px 14px;transition:.12s}
+  .btn{background:var(--accent);color:#fff}.btn:hover{background:var(--accent-d)}
+  .btn.g{background:var(--ok)}.btn.g:hover{filter:brightness(.94)}
+  .btn.ghost{background:#eef1f6;color:var(--ink)}.btn.ghost:hover{background:#e2e7ef}
+  .btn.sm{padding:6px 10px;font-size:12px}
+  .btn.danger{background:#fdecec;color:var(--warn)}.btn.danger:hover{background:#fbdcdc}
+  details{border:1px dashed var(--line);border-radius:8px;padding:2px 10px;margin-top:6px;background:#fcfdff}
+  details summary{cursor:pointer;font-size:12.5px;color:var(--accent);font-weight:600;padding:8px 0}
+  .venue{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;background:#fcfdff;position:relative}
+  .venue .vh{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .venue .vh strong{font-size:13px}
+  .exc{display:grid;grid-template-columns:130px 1fr 90px 34px;gap:8px;align-items:center;margin-bottom:6px}
+  @media(max-width:560px){.exc{grid-template-columns:1fr 1fr}}
+  .exc select,.exc input{padding:6px 8px;font-size:12px}
+  table.prev{width:100%;border-collapse:collapse;font-size:11.5px}
+  table.prev th,table.prev td{border:1px solid var(--line);padding:5px 7px;text-align:left;white-space:nowrap}
+  table.prev th{background:#f4f6fb;position:sticky;top:0}
+  .scroll{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+  .side{position:sticky;top:16px}
+  .stat{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px}
+  .stat:last-child{border-bottom:none}
+  .stat b{font-size:15px}
+  .pill{display:inline-block;background:var(--chip);color:var(--accent-d);border-radius:999px;padding:2px 9px;
+    font-size:11px;font-weight:600;margin:2px 4px 2px 0}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .msg{font-size:12px;padding:8px 10px;border-radius:8px;margin-top:8px;display:none}
+  .msg.ok{background:#e8f6ee;color:#0b6b39;display:block}
+  .msg.err{background:#fdecec;color:var(--warn);display:block}
+  .slotgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;max-height:180px;overflow:auto;
+    border:1px solid var(--line);border-radius:8px;padding:8px;background:#fcfdff}
+  .slotgrid .s{display:flex;gap:6px;align-items:center;font-size:11.5px}
+  .slotgrid .s span{flex:1;color:var(--sub)}
+  .slotgrid .s input{width:64px;padding:4px 6px;font-size:11.5px}
+  code{background:#eef2ff;padding:1px 5px;border-radius:4px;font-size:11.5px}
+  .k{color:var(--sub);font-size:11px}
+  /* tabs */
+  .tabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid var(--line)}
+  .tab{background:none;border:none;padding:11px 18px;font-size:14px;font-weight:700;color:var(--sub);
+    border-bottom:3px solid transparent;margin-bottom:-2px;border-radius:8px 8px 0 0}
+  .tab:hover{color:var(--ink);background:#f0f3f9}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .pane{display:none}.pane.active{display:block}
+  /* stock mode */
+  .drop{border:2px dashed #b9c6e0;border-radius:12px;padding:26px;text-align:center;background:#f7faff;cursor:pointer;transition:.15s}
+  .drop:hover,.drop.over{background:#eef4ff;border-color:var(--accent)}
+  .drop b{color:var(--accent)}
+  .bulkbar{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:4px 0 12px}
+  .bulkbar .fld{display:flex;flex-direction:column;gap:3px}
+  .bulkbar .fld input,.bulkbar .fld select{padding:6px 8px;font-size:12.5px}
+  .bulkbar .fld input[type=number]{width:90px}
+  .stockgrid{width:100%;border-collapse:collapse;font-size:12px}
+  .stockgrid th,.stockgrid td{border:1px solid var(--line);padding:5px 8px;white-space:nowrap;text-align:left}
+  .stockgrid th{background:#f4f6fb;position:sticky;top:0;z-index:1}
+  .stockgrid td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .stockgrid input{width:80px;padding:5px 7px;font-size:12px;text-align:right}
+  .stockgrid tr.changed{background:#fff8e6}
+  .daterow td{background:#eef2ff;font-weight:700;color:var(--accent-d)}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{background:#fff;border:none;padding:8px 14px;font-size:12.5px;font-weight:600;color:var(--sub)}
+  .seg button.on{background:var(--accent);color:#fff}
+</style>
+</head>
+<body>
+<header>
+  <h1>チケット入稿CSVジェネレーター <span style="opacity:.7;font-weight:400;font-size:13px">for Matrixify / Shopify</span></h1>
+  <p>公演日ごとの商品・30分刻みの時間枠・平日/休日価格・祝日判定・最終日短縮を自動展開して、Matrixify取り込み用CSVを書き出します。</p>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="tab active" id="tabBtnCreate" onclick="switchTab('Create')">🎫 チケット商品を作成</button>
+    <button class="tab" id="tabBtnStock" onclick="switchTab('Stock')">➕ 在庫を追加</button>
+  </div>
+
+  <div id="paneCreate" class="pane active">
+  <div class="toolbar" style="margin-bottom:14px">
+    <button class="btn ghost sm" onclick="saveJSON()">⬇ 設定を保存(JSON)</button>
+    <label class="btn ghost sm" style="margin:0">⬆ 設定を読込
+      <input type="file" id="loadFile" accept=".json" style="display:none" onchange="loadJSON(event)">
+    </label>
+    <button class="btn ghost sm" onclick="loadSample()">サンプル設定を再読込</button>
+    <button class="btn danger sm" onclick="clearAll()">全消去</button>
+    <span class="k" id="autosaveNote" style="align-self:center"></span>
+  </div>
+
+  <div class="grid">
+    <!-- LEFT: FORM -->
+    <div>
+      <!-- 1. イベント共通 -->
+      <div class="card">
+        <h2><span class="n">1</span> イベント共通設定</h2>
+        <div class="body">
+          <div class="row c2">
+            <div><label>イベント名（タイトル・タグに使用）</label>
+              <input type="text" id="eventName" oninput="render()"></div>
+            <div><label>イベントスラッグ（半角英数・Handle/タグ用）</label>
+              <input type="text" id="eventSlug" oninput="render()"></div>
+          </div>
+          <div class="row c2">
+            <div><label>Vendor</label><input type="text" id="vendor" oninput="render()"></div>
+            <div><label>タグ書式 <span class="k">{slug}=スラッグ, {city}=都市slug, {event}=イベント名</span></label>
+              <input type="text" id="tagsTpl" oninput="render()"></div>
+          </div>
+          <div>
+            <label>商品説明テンプレート（Body HTML） <span class="k">差込: {{期間}} {{会場}} {{平日価格}} {{休日価格}} {{最終入場}}</span></label>
+            <textarea id="bodyTpl" rows="6" oninput="render()"></textarea>
+          </div>
+
+          <details>
+            <summary>固定設定（通常は変更不要：Shopify項目・公開設定）</summary>
+            <div class="row c3" style="margin-top:10px">
+              <div><label>Status</label><input type="text" id="status" value="Active" oninput="render()"></div>
+              <div><label>Published（公開）</label>
+                <select id="published" onchange="render()"><option value="FALSE">FALSE（非公開）</option><option value="TRUE">TRUE（公開）</option></select></div>
+              <div><label>Published Scope</label><input type="text" id="pubScope" value="global" oninput="render()"></div>
+            </div>
+            <div class="row c2">
+              <div><label>Published At（予約公開日時・任意）</label>
+                <input type="datetime-local" id="pubAt" oninput="render()"></div>
+              <div><label>Handle接頭辞</label><input type="text" id="handlePrefix" value="ticket" oninput="render()"></div>
+            </div>
+            <div class="row c4">
+              <div><label>在庫トラッカー</label><input type="text" id="invTracker" value="shopify" oninput="render()"></div>
+              <div><label>在庫ポリシー</label><input type="text" id="invPolicy" value="deny" oninput="render()"></div>
+              <div><label>フルフィルメント</label><input type="text" id="fulfill" value="manual" oninput="render()"></div>
+              <div><label>Requires Shipping</label>
+                <select id="reqShip" onchange="render()"><option value="FALSE">FALSE</option><option value="TRUE">TRUE</option></select></div>
+            </div>
+            <div class="row c4">
+              <div><label>Taxable</label>
+                <select id="taxable" onchange="render()"><option value="TRUE">TRUE</option><option value="FALSE">FALSE</option></select></div>
+              <div><label>Gift Card</label>
+                <select id="giftcard" onchange="render()"><option value="FALSE">FALSE</option><option value="TRUE">TRUE</option></select></div>
+              <div><label>Weight</label><input type="number" id="weight" value="0" oninput="render()"></div>
+              <div><label>Weight Unit</label><input type="text" id="weightUnit" value="kg" oninput="render()"></div>
+            </div>
+            <div class="row c2">
+              <div><label>Image Command</label><input type="text" id="imgCmd" value="MERGE" oninput="render()"></div>
+              <div><label>Command</label><input type="text" id="cmd" value="NEW" oninput="render()"></div>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <!-- 2. 時間枠 -->
+      <div class="card">
+        <h2><span class="n">2</span> 時間枠テンプレート（毎日共通）</h2>
+        <div class="body">
+          <div class="row c4">
+            <div><label>開場（最初の入場開始）</label><input type="time" id="openTime" value="10:00" oninput="rebuildSlots()"></div>
+            <div><label>最終入場の終了時刻（通常日）</label><input type="time" id="closeTime" value="19:30" oninput="rebuildSlots()"></div>
+            <div><label>1枠の長さ（分）</label><input type="number" id="slotMin" value="30" min="5" step="5" oninput="rebuildSlots()"></div>
+            <div><label>時間枠ラベル書式</label><input type="text" id="labelTpl" value="{start}~{end}入場用" oninput="render()"></div>
+          </div>
+          <div class="row c3">
+            <div><label>通常在庫（各枠）</label><input type="number" id="invBase" value="100" oninput="rebuildSlots()"></div>
+            <div><label>最初の枠の在庫（先頭◯枠）</label>
+              <div style="display:flex;gap:6px"><input type="number" id="invFirstQty" value="120" oninput="rebuildSlots()" style="flex:2"><input type="number" id="invFirstN" value="2" min="0" title="先頭何枠に適用" oninput="rebuildSlots()" style="flex:1"></div>
+              <div class="hint">左=在庫 / 右=先頭何枠に適用</div></div>
+            <div><label>最後の枠の在庫</label><input type="number" id="invLastQty" value="120" oninput="rebuildSlots()"></div>
+          </div>
+          <div class="hint" style="margin-bottom:6px">↓ 自動生成された枠。個別に在庫を上書きできます（短縮日でも「最後の枠」は自動で最終枠在庫になります）。</div>
+          <div class="slotgrid" id="slotGrid"></div>
+        </div>
+      </div>
+
+      <!-- 3. 価格 -->
+      <div class="card">
+        <h2><span class="n">3</span> 価格・休日判定</h2>
+        <div class="body">
+          <div class="row c3">
+            <div><label>平日価格（円）</label><input type="number" id="priceWeekday" value="1800" oninput="render()"></div>
+            <div><label>土日祝価格（円）</label><input type="number" id="priceHoliday" value="2100" oninput="render()"></div>
+            <div><label>祝日を休日扱いに</label>
+              <select id="useHolidays" onchange="render()"><option value="1">自動判定する（日本の祝日）</option><option value="0">土日のみ休日</option></select></div>
+          </div>
+          <div class="hint">土曜・日曜・日本の国民の祝日（振替休日・国民の休日を含む）を自動で「休日価格」にします。個別の例外は各会場の「例外日」で上書きできます（例：7/7を平日に固定）。</div>
+        </div>
+      </div>
+
+      <!-- 4. 会場 -->
+      <div class="card">
+        <h2><span class="n">4</span> 会場・期間</h2>
+        <div class="body">
+          <div id="venues"></div>
+          <button class="btn ghost sm" onclick="addVenue()">＋ 会場を追加</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: SUMMARY + OUTPUT -->
+    <div>
+      <div class="side">
+        <div class="card">
+          <h2><span class="n">5</span> 集計と出力</h2>
+          <div class="body">
+            <div id="stats"></div>
+            <div id="cityChips" style="margin:10px 0"></div>
+            <div class="toolbar">
+              <button class="btn g" onclick="downloadAll()">全会場まとめてCSV</button>
+            </div>
+            <div id="perCityBtns" class="toolbar" style="margin-top:6px"></div>
+            <div id="msg" class="msg"></div>
+            <details style="margin-top:12px">
+              <summary>CSVプレビュー（先頭30行）</summary>
+              <div class="scroll" style="margin-top:8px"><table class="prev" id="prevTable"></table></div>
+            </details>
+          </div>
+        </div>
+        <div class="card">
+          <h2>使い方メモ</h2>
+          <div class="body" style="font-size:12.5px;color:var(--sub)">
+            ① 会場ごとに <b>期間・画像URL・会場名</b> を入れる → ② 例外日（短縮/平日固定など）を登録 → ③「CSV」を押す → ④ Matrixify の Import で取り込み。<br><br>
+            列構成は現行の Matrixify ファイルに合わせて出力します（Excelで開いても文字化けしないUTF-8 BOM付き）。<br><br>
+            設定は自動保存されます。別PCへは「設定を保存(JSON)」で引き継げます。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div><!-- /paneCreate -->
+
+  <!-- ============ 在庫追加モード ============ -->
+  <div id="paneStock" class="pane">
+    <div class="card">
+      <h2><span class="n">1</span> Matrixifyでエクスポートした商品ファイルを読み込む</h2>
+      <div class="body">
+        <div class="drop" id="drop" onclick="F('stockFile').click()">
+          <p style="margin:0 0 6px"><b>CSVファイルをここにドロップ</b> または クリックして選択</p>
+          <p class="k" style="margin:0">Matrixify の Export → Products を <b>CSV形式</b> で書き出したファイル（Handle / Variant ID / 現在庫が入っているもの）</p>
+          <input type="file" id="stockFile" accept=".csv,text/csv" style="display:none" onchange="onStockFile(event)">
+        </div>
+        <div id="stockLoadMsg" class="msg"></div>
+        <details style="margin-top:10px">
+          <summary>エクスポート手順（Matrixify）</summary>
+          <div class="k" style="margin-top:8px;line-height:1.7">
+            Matrixify → <b>Export</b> → 対象に <b>Products</b> を選択 → 必要なら Filter で対象コレクション/期間に絞る → Format を <b>CSV</b> → Export。<br>
+            出力ファイルには最低限 <code>Handle</code> <code>Variant ID</code> <code>Option1 Value</code> <code>Variant Inventory Qty</code> が含まれていればOKです。
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="card" id="stockPanel" style="display:none">
+      <h2><span class="n">2</span> 追加する在庫を入力</h2>
+      <div class="body">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+          <span class="k">出力モード：</span>
+          <div class="seg" id="modeSeg">
+            <button class="on" data-mode="adjust" onclick="setStockMode('adjust')">在庫を追加（差分 ±）</button>
+            <button data-mode="set" onclick="setStockMode('set')">在庫を上書き（絶対値）</button>
+          </div>
+          <span class="k" id="modeHint">現在庫に対して入力した数を足し引きします（Variant Inventory Adjust）。</span>
+        </div>
+
+        <div class="bulkbar">
+          <div class="fld"><label>絞り込み：日付から</label><input type="date" id="fFrom" oninput="renderStockGrid()"></div>
+          <div class="fld"><label>日付まで</label><input type="date" id="fTo" oninput="renderStockGrid()"></div>
+          <div class="fld"><label>キーワード（Handle/時間）</label><input type="text" id="fKw" placeholder="例: tokyo / 10:00" oninput="renderStockGrid()" style="width:150px"></div>
+        </div>
+        <div class="bulkbar" style="background:#f7faff;border:1px solid var(--line);border-radius:10px;padding:10px">
+          <div class="fld"><label>まとめて加算する枚数</label><input type="number" id="bulkN" value="50"></div>
+          <button class="btn sm" onclick="bulkApply('all')">全枠に適用</button>
+          <button class="btn sm ghost" onclick="bulkApply('filtered')">表示中の枠に適用</button>
+          <div class="fld"><label>特定の時間枠だけに</label>
+            <select id="bulkSlot"><option value="">時間枠を選択</option></select></div>
+          <button class="btn sm ghost" onclick="bulkApply('slot')">その枠に適用</button>
+          <button class="btn danger sm" onclick="clearDeltas()">入力をクリア</button>
+        </div>
+
+        <div id="stockStats" style="margin-bottom:8px"></div>
+        <div class="scroll" style="max-height:440px"><table class="stockgrid" id="stockTable"></table></div>
+
+        <div class="toolbar" style="margin-top:12px">
+          <button class="btn g" onclick="downloadStockCSV()">在庫追加CSVを書き出す</button>
+          <span class="k" id="stockOutNote" style="align-self:center"></span>
+        </div>
+        <div id="stockMsg" class="msg"></div>
+      </div>
+    </div>
+  </div><!-- /paneStock -->
+</div>
+
+<script>
+/* ============================ 祝日計算（日本） ============================ */
+function nthMonday(y,m,n){ // m:1-12
+  let d=new Date(y,m-1,1), day=d.getDay();
+  let first=(day<=1)?(1+(1-day)):(1+(8-day)); // first Monday date
+  return new Date(y,m-1,first+(n-1)*7);
+}
+function vernalEquinox(y){ return Math.floor(20.8431+0.242194*(y-1980)-Math.floor((y-1980)/4)); }
+function autumnalEquinox(y){ return Math.floor(23.2488+0.242194*(y-1980)-Math.floor((y-1980)/4)); }
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function baseHolidays(y){
+  const h={};
+  const add=(mo,da,name)=>{ h[ymd(new Date(y,mo-1,da))]=name; };
+  add(1,1,'元日'); add(2,11,'建国記念の日'); add(2,23,'天皇誕生日');
+  add(4,29,'昭和の日'); add(5,3,'憲法記念日'); add(5,4,'みどりの日'); add(5,5,'こどもの日');
+  add(8,11,'山の日'); add(11,3,'文化の日'); add(11,23,'勤労感謝の日');
+  const hm=(mo,n,name)=>{ h[ymd(nthMonday(y,mo,n))]=name; };
+  hm(1,2,'成人の日'); hm(7,3,'海の日'); hm(9,3,'敬老の日'); hm(10,2,'スポーツの日');
+  add(3,vernalEquinox(y),'春分の日'); add(9,autumnalEquinox(y),'秋分の日');
+  return h;
+}
+const _holidayCache={};
+function holidaysForYear(y){
+  if(_holidayCache[y]) return _holidayCache[y];
+  const base=baseHolidays(y);
+  const set={...base};
+  // 振替休日: 日曜が祝日→翌日以降の非祝日を休日に
+  Object.keys(base).forEach(k=>{
+    const d=new Date(k+'T00:00:00');
+    if(d.getDay()===0){
+      let n=new Date(d); do{ n.setDate(n.getDate()+1);}while(set[ymd(n)]); set[ymd(n)]='振替休日';
+    }
+  });
+  // 国民の休日: 祝日に挟まれた平日
+  const start=new Date(y,0,1), end=new Date(y,11,31);
+  for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
+    const key=ymd(d);
+    if(set[key]) continue;
+    if(d.getDay()===0) continue;
+    const prev=new Date(d); prev.setDate(prev.getDate()-1);
+    const next=new Date(d); next.setDate(next.getDate()+1);
+    if(base[ymd(prev)]&&base[ymd(next)]) set[key]='国民の休日';
+  }
+  _holidayCache[y]=set; return set;
+}
+function isHolidayDate(d){ // Sat/Sun/national holiday
+  const wd=d.getDay();
+  if(wd===0||wd===6) return true;
+  return !!holidaysForYear(d.getFullYear())[ymd(d)];
+}
+
+/* ============================ 状態 ============================ */
+let state={};
+function defaultState(){
+  return {
+    eventName:'サンプル展覧会',
+    eventSlug:'sample-event',
+    vendor:'sample ticket',
+    tagsTpl:'_ng_with_normal_group:{slug}_{city}, _{event}',
+    bodyTpl:'<p style="padding: .5em; font-weight: bold; border: 1px solid rgb(255, 0, 0); color: rgb(255, 0, 0); background: rgba(255, 0,0, .1);">※ご購入前に下記注意事項を必ずお読みください。<br>チケットのご利用方法はチケットのご購入・当日の入場方法についてをご確認ください</p>\n<p><span>※1：チケットは、前日までキャンセル可能です。当日キャンセルはいかなる理由でも受け付けておりませんのでご注意ください。<br>※2：所定のお時間に来場できない場合はFAQをご確認ください。<br>※3：チケットを枚数毎に分配することはできません。<br>※4：チケットの第三者への譲渡・転売は禁じております。<br>※5：ご選択いただく時間は【入場時間】です。<br>※6：WEBチケットです。現物はございません。<br>※7：会場へのお問い合わせはご遠慮ください。</span></p>\n<h6><span>イベント詳細</span></h6>\n<p>【日時】<br>{{期間}}<br>10:00〜20:00（最終入場 {{最終入場}}）</p>\n<p>【場所】<br>{{会場}}</p>\n<p>【Webチケット】<br>「{{イベント名}}」<br>・平日：{{平日価格}}円<br>・休日：{{休日価格}}円</p>\n<p>※障がい者割引をご希望の方は、FAQをご確認ください。<br>※小学生以下無料</p>',
+    status:'Active', published:'FALSE', pubScope:'global', pubAt:'', handlePrefix:'ticket',
+    invTracker:'shopify', invPolicy:'deny', fulfill:'manual', reqShip:'FALSE',
+    taxable:'TRUE', giftcard:'FALSE', weight:0, weightUnit:'kg', imgCmd:'MERGE', cmd:'NEW',
+    openTime:'10:00', closeTime:'19:30', slotMin:30, labelTpl:'{start}~{end}入場用',
+    invBase:100, invFirstQty:120, invFirstN:2, invLastQty:120,
+    slotOverrides:{}, // 'HH:MM'(start) -> qty
+    priceWeekday:1800, priceHoliday:2100, useHolidays:'1',
+    venues:[
+      {city:'東京',citySlug:'tokyo',venue:'（会場名を入力）',image:'',start:'2026-07-01',end:'2026-09-30',
+        exceptions:[{date:'2026-07-07',type:'weekday'},{date:'2026-09-30',type:'short',time:'17:30'}]},
+      {city:'名古屋',citySlug:'nagoya',venue:'（会場名を入力）',image:'',start:'2026-07-10',end:'',exceptions:[]}
+    ]
+  };
+}
+
+/* ============================ フォーム⇄状態 ============================ */
+const F=id=>document.getElementById(id);
+const simpleFields=['eventName','eventSlug','vendor','tagsTpl','bodyTpl','status','published','pubScope','pubAt',
+  'handlePrefix','invTracker','invPolicy','fulfill','reqShip','taxable','giftcard','weight','weightUnit','imgCmd','cmd',
+  'openTime','closeTime','slotMin','labelTpl','invBase','invFirstQty','invFirstN','invLastQty',
+  'priceWeekday','priceHoliday','useHolidays'];
+function stateFromForm(){
+  simpleFields.forEach(f=>{ if(F(f)) state[f]=F(f).value; });
+  // venues read from DOM
+  const vs=[];
+  document.querySelectorAll('.venue').forEach(v=>{
+    const i=v.dataset.idx;
+    const exc=[];
+    v.querySelectorAll('.exc').forEach(e=>{
+      const date=e.querySelector('.exDate').value;
+      if(!date) return;
+      const type=e.querySelector('.exType').value;
+      const time=e.querySelector('.exTime')?e.querySelector('.exTime').value:'';
+      exc.push({date,type,time});
+    });
+    vs.push({
+      city:v.querySelector('.vCity').value, citySlug:v.querySelector('.vSlug').value,
+      venue:v.querySelector('.vVenue').value, image:v.querySelector('.vImage').value,
+      start:v.querySelector('.vStart').value, end:v.querySelector('.vEnd').value, exceptions:exc
+    });
+  });
+  state.venues=vs;
+}
+function formFromState(){
+  simpleFields.forEach(f=>{ if(F(f)&&state[f]!==undefined) F(f).value=state[f]; });
+  renderVenues();
+  rebuildSlots(true);
+}
+
+/* ============================ 時間枠 ============================ */
+function timeToMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+function minToTime(x){ return String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0'); }
+function genSlots(openT,closeT,step){
+  const slots=[]; const o=timeToMin(openT),c=timeToMin(closeT);
+  for(let s=o;s+step<=c;s+=step) slots.push({start:minToTime(s),end:minToTime(s+step)});
+  return slots;
+}
+function slotInv(idx,total,startStr){
+  if(state.slotOverrides && state.slotOverrides[startStr]!==undefined && state.slotOverrides[startStr]!=='')
+    return Number(state.slotOverrides[startStr]);
+  const firstN=Number(state.invFirstN)||0;
+  if(idx===total-1) return Number(state.invLastQty);
+  if(idx<firstN) return Number(state.invFirstQty);
+  return Number(state.invBase);
+}
+function rebuildSlots(fromLoad){
+  if(!fromLoad) stateFromForm();
+  const slots=genSlots(state.openTime,state.closeTime,Number(state.slotMin));
+  const g=F('slotGrid'); g.innerHTML='';
+  slots.forEach((s,i)=>{
+    const q=slotInv(i,slots.length,s.start);
+    const div=document.createElement('div'); div.className='s';
+    div.innerHTML=`<span>${s.start}~${s.end}</span><input type="number" data-start="${s.start}" value="${q}" oninput="onSlotOverride(this)">`;
+    g.appendChild(div);
+  });
+  render();
+}
+function onSlotOverride(inp){
+  if(!state.slotOverrides) state.slotOverrides={};
+  state.slotOverrides[inp.dataset.start]=inp.value;
+  render();
+}
+
+/* ============================ 会場UI ============================ */
+function renderVenues(){
+  const box=F('venues'); box.innerHTML='';
+  state.venues.forEach((v,idx)=>box.appendChild(venueEl(v,idx)));
+}
+function venueEl(v,idx){
+  const el=document.createElement('div'); el.className='venue'; el.dataset.idx=idx;
+  el.innerHTML=`
+    <div class="vh"><strong>会場 ${idx+1}</strong>
+      <button class="btn danger sm" onclick="removeVenue(${idx})">削除</button></div>
+    <div class="row c3">
+      <div><label>都市（表示名）</label><input class="vCity" type="text" value="${esc(v.city)}" oninput="render()"></div>
+      <div><label>都市スラッグ（英数）</label><input class="vSlug" type="text" value="${esc(v.citySlug)}" oninput="render()"></div>
+      <div><label>会場名・住所（説明文へ差込）</label><input class="vVenue" type="text" value="${esc(v.venue)}" oninput="render()"></div>
+    </div>
+    <div class="row c2">
+      <div><label>開始日</label><input class="vStart" type="date" value="${esc(v.start)}" oninput="render()"></div>
+      <div><label>終了日</label><input class="vEnd" type="date" value="${esc(v.end)}" oninput="render()"></div>
+    </div>
+    <div class="row"><div><label>バナー画像URL</label><input class="vImage" type="text" value="${esc(v.image)}" oninput="render()"></div></div>
+    <label>例外日（祝日誤判定の修正・最終日短縮・休業）</label>
+    <div class="excList"></div>
+    <button class="btn ghost sm" onclick="addExc(${idx})">＋ 例外日を追加</button>
+  `;
+  const list=el.querySelector('.excList');
+  (v.exceptions||[]).forEach(e=>list.appendChild(excEl(e)));
+  return el;
+}
+function excEl(e){
+  const row=document.createElement('div'); row.className='exc';
+  row.innerHTML=`
+    <input class="exDate" type="date" value="${esc(e.date||'')}" oninput="render()">
+    <select class="exType" onchange="onExcType(this);render()">
+      <option value="weekday">平日扱い（価格）</option>
+      <option value="holiday">休日扱い（価格）</option>
+      <option value="short">短縮（最終入場を変更）</option>
+      <option value="closed">休業（この日は作らない）</option>
+    </select>
+    <input class="exTime" type="time" value="${esc(e.time||'17:30')}" oninput="render()">
+    <button class="btn danger sm" onclick="this.parentElement.remove();render()">×</button>`;
+  row.querySelector('.exType').value=e.type||'weekday';
+  onExcType(row.querySelector('.exType'));
+  return row;
+}
+function onExcType(sel){
+  const t=sel.parentElement.querySelector('.exTime');
+  t.style.visibility=(sel.value==='short')?'visible':'hidden';
+}
+function addVenue(){ stateFromForm(); state.venues.push({city:'',citySlug:'',venue:'',image:'',start:'',end:'',exceptions:[]}); renderVenues(); render(); }
+function removeVenue(i){ stateFromForm(); state.venues.splice(i,1); renderVenues(); render(); }
+function addExc(i){ stateFromForm(); document.querySelectorAll('.venue')[i].querySelector('.excList').appendChild(excEl({date:'',type:'weekday',time:'17:30'})); render(); }
+
+/* ============================ 生成ロジック ============================ */
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtDate(d){ return ymd(d); }
+function jpDateSlash(d){ return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0'); }
+const WD=['日','月','火','水','木','金','土'];
+function jpDateWithWd(d){ return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+'（'+WD[d.getDay()]+'）'; }
+function pad(n){return String(n).padStart(2,'0');}
+
+// Matrixify 列（現行ファイル準拠・36列）
+const COLS=['ID','Handle','Command','Title','Body (HTML)','Vendor','Type','Tags','Tags Command','Status','Published',
+'Published At','Published Scope','Template Suffix','Gift Card','Image Src','Image Command','Variant Inventory Item ID',
+'Variant ID','Variant Command','Option1 Name','Option1 Value','Variant Position','Variant Weight','Variant Weight Unit',
+'Variant Price','Variant Taxable','Variant Inventory Tracker','Variant Inventory Policy','Variant Fulfillment Service',
+'Variant Requires Shipping','Variant Inventory Qty','Included / Japan','Metafield: ticket.date [date]',
+'Metafield: datetime.end [date_time]','Variant Metafield: datetime.end [date_time]'];
+
+function buildBody(v,d){
+  const range=jpDateWithWd(new Date(v.start))+'〜'+jpDateWithWd(new Date(v.end||v.start));
+  return (state.bodyTpl||'')
+    .replaceAll('{{期間}}',range)
+    .replaceAll('{{会場}}',v.venue||'')
+    .replaceAll('{{平日価格}}',Number(state.priceWeekday).toLocaleString())
+    .replaceAll('{{休日価格}}',Number(state.priceHoliday).toLocaleString())
+    .replaceAll('{{最終入場}}',state.closeTime||'')
+    .replaceAll('{{イベント名}}',state.eventName||'');
+}
+function tagsFor(v){
+  return (state.tagsTpl||'').replaceAll('{slug}',state.eventSlug).replaceAll('{city}',v.citySlug).replaceAll('{event}',state.eventName);
+}
+function pubAtStr(){
+  if(!state.pubAt) return '';
+  const d=new Date(state.pubAt);
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':00 +0900';
+}
+
+// 1会場ぶんの行を生成
+function rowsForVenue(v){
+  const rows=[]; if(!v.start) return rows;
+  const start=new Date(v.start+'T00:00:00');
+  const end=new Date((v.end||v.start)+'T00:00:00');
+  const excMap={}; (v.exceptions||[]).forEach(e=>{ if(e.date) excMap[e.date]=e; });
+  const step=Number(state.slotMin);
+  for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
+    const key=ymd(d);
+    const ex=excMap[key];
+    if(ex && ex.type==='closed') continue;
+    // 価格判定
+    let holiday;
+    if(ex && ex.type==='weekday') holiday=false;
+    else if(ex && ex.type==='holiday') holiday=true;
+    else holiday=(state.useHolidays==='1')?isHolidayDate(d):(d.getDay()===0||d.getDay()===6);
+    const price=holiday?Number(state.priceHoliday):Number(state.priceWeekday);
+    // 短縮日
+    let closeT=state.closeTime;
+    if(ex && ex.type==='short' && ex.time) closeT=ex.time;
+    const slots=genSlots(state.openTime,closeT,step);
+    if(slots.length===0) continue;
+    // 商品共通
+    const y=d.getFullYear(), mo=pad(d.getMonth()+1), da=pad(d.getDate());
+    const handle=`${state.handlePrefix}-${state.eventSlug}-${v.citySlug}-${y}-${mo}-${da}`;
+    const title=`${v.city}【${y}/${mo}/${da}】${state.eventName}`;
+    const type=`${v.city}【${y}/${mo}】${state.eventName}`;
+    const tags=tagsFor(v);
+    const body=buildBody(v,d);
+    const dtEndProduct=`${y}-${mo}-${da} 23:59:00 +0900`;
+    const ticketDate=`${y}-${mo}-${da}`;
+    slots.forEach((s,i)=>{
+      const first=(i===0);
+      const label=(state.labelTpl||'{start}~{end}').replaceAll('{start}',s.start).replaceAll('{end}',s.end);
+      const vEnd=`${y}-${mo}-${da} ${s.end}:00 +0900`;
+      const inv=slotInv(i,slots.length,s.start);
+      const r={};
+      r['ID']=''; r['Handle']=handle; r['Command']=state.cmd; r['Title']=title;
+      r['Body (HTML)']=first?body:''; r['Vendor']=state.vendor; r['Type']=type; r['Tags']=tags; r['Tags Command']='';
+      r['Status']=state.status; r['Published']=state.published; r['Published At']=first?pubAtStr():'';
+      r['Published Scope']=state.pubScope; r['Template Suffix']=''; r['Gift Card']=state.giftcard;
+      r['Image Src']=first?v.image:''; r['Image Command']=first?state.imgCmd:'';
+      r['Variant Inventory Item ID']=''; r['Variant ID']=''; r['Variant Command']='';
+      r['Option1 Name']='時間'; r['Option1 Value']=label; r['Variant Position']=i+1;
+      r['Variant Weight']=state.weight; r['Variant Weight Unit']=state.weightUnit;
+      r['Variant Price']=price; r['Variant Taxable']=state.taxable;
+      r['Variant Inventory Tracker']=state.invTracker; r['Variant Inventory Policy']=state.invPolicy;
+      r['Variant Fulfillment Service']=state.fulfill; r['Variant Requires Shipping']=state.reqShip;
+      r['Variant Inventory Qty']=inv; r['Included / Japan']=first?'TRUE':'';
+      r['Metafield: ticket.date [date]']=first?ticketDate:'';
+      r['Metafield: datetime.end [date_time]']=first?dtEndProduct:'';
+      r['Variant Metafield: datetime.end [date_time]']=vEnd;
+      rows.push(r);
+    });
+  }
+  return rows;
+}
+
+/* ============================ CSV ============================ */
+function csvCell(x){
+  x=(x==null)?'':String(x);
+  if(/[",\n\r]/.test(x)) return '"'+x.replace(/"/g,'""')+'"';
+  return x;
+}
+function toCSV(rows){
+  const lines=[COLS.join(',')];
+  rows.forEach(r=>lines.push(COLS.map(c=>csvCell(r[c])).join(',')));
+  return '﻿'+lines.join('\r\n');
+}
+function download(name,text){
+  const blob=new Blob([text],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+}
+function safeName(s){ return String(s||'').replace(/[^\w\-一-龠ぁ-んァ-ヶ0-9]/g,'_'); }
+function downloadAll(){
+  stateFromForm();
+  let all=[]; state.venues.forEach(v=>all=all.concat(rowsForVenue(v)));
+  if(!all.length){ showMsg('生成対象がありません。期間を確認してください。','err'); return; }
+  download(`matrixify_${safeName(state.eventSlug)}_all.csv`,toCSV(all));
+  showMsg(`全 ${all.length} 行を書き出しました（${state.venues.length}会場）。`,'ok');
+}
+function downloadCity(idx){
+  stateFromForm();
+  const v=state.venues[idx]; const rows=rowsForVenue(v);
+  if(!rows.length){ showMsg(`${v.city||'会場'+ (idx+1)} は生成対象がありません。`,'err'); return; }
+  download(`matrixify_${safeName(state.eventSlug)}_${safeName(v.citySlug||v.city)}.csv`,toCSV(rows));
+  showMsg(`${v.city} を ${rows.length} 行 書き出しました。`,'ok');
+}
+
+/* ============================ 集計・プレビュー ============================ */
+function render(){
+  stateFromForm(); autosave();
+  let total=0, days=0; const chips=[]; const perBtns=[];
+  state.venues.forEach((v,idx)=>{
+    const rows=rowsForVenue(v);
+    const dset=new Set(rows.map(r=>r['Handle']));
+    total+=rows.length; days+=dset.size;
+    chips.push(`<span class="pill">${esc(v.city||'会場'+(idx+1))}：${dset.size}日 / ${rows.length}行</span>`);
+    perBtns.push(`<button class="btn sm" onclick="downloadCity(${idx})">${esc(v.city||'会場'+(idx+1))} CSV</button>`);
+  });
+  const slots=genSlots(state.openTime,state.closeTime,Number(state.slotMin)).length;
+  F('stats').innerHTML=`
+    <div class="stat"><span>会場数</span><b>${state.venues.length}</b></div>
+    <div class="stat"><span>公演日数（合計）</span><b>${days} 日</b></div>
+    <div class="stat"><span>通常日の時間枠</span><b>${slots} 枠</b></div>
+    <div class="stat"><span>CSV行数（合計）</span><b>${total.toLocaleString()} 行</b></div>`;
+  F('cityChips').innerHTML=chips.join('');
+  F('perCityBtns').innerHTML=perBtns.join('');
+  // preview
+  let all=[]; state.venues.forEach(v=>{ if(all.length<40) all=all.concat(rowsForVenue(v)); });
+  const show=all.slice(0,30);
+  const pcols=['Handle','Title','Type','Option1 Value','Variant Price','Variant Inventory Qty','Variant Metafield: datetime.end [date_time]','Metafield: ticket.date [date]'];
+  let html='<tr>'+pcols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
+  show.forEach(r=>{ html+='<tr>'+pcols.map(c=>`<td>${esc(r[c])}</td>`).join('')+'</tr>'; });
+  F('prevTable').innerHTML=html;
+}
+function showMsg(t,cls){ const m=F('msg'); m.textContent=t; m.className='msg '+cls; setTimeout(()=>{m.className='msg';},6000); }
+
+/* ============================ 保存・読込 ============================ */
+function autosave(){ try{ localStorage.setItem('ticketCsvTool',JSON.stringify(state)); F('autosaveNote').textContent='自動保存済み'; }catch(e){ F('autosaveNote').textContent='(自動保存はこの環境では無効)'; } }
+function saveJSON(){ stateFromForm(); download(`ticket_tool_settings_${safeName(state.eventSlug)}.json`, JSON.stringify(state,null,2)); }
+function loadJSON(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const rd=new FileReader(); rd.onload=e=>{ try{ state=JSON.parse(e.target.result); formFromState(); render(); showMsg('設定を読み込みました。','ok'); }catch(err){ showMsg('JSONの読み込みに失敗しました。','err'); } };
+  rd.readAsText(f); ev.target.value='';
+}
+function loadSample(){ state=defaultState(); formFromState(); render(); showMsg('サンプル設定を読み込みました。','ok'); }
+function clearAll(){ if(!confirm('全ての入力を消去して初期化しますか？'))return; state=defaultState(); state.venues=[{city:'',citySlug:'',venue:'',image:'',start:'',end:'',exceptions:[]}]; formFromState(); render(); }
+
+/* ============================ タブ切替 ============================ */
+function switchTab(name){
+  ['Create','Stock'].forEach(n=>{
+    F('pane'+n).classList.toggle('active', n===name);
+    F('tabBtn'+n).classList.toggle('active', n===name);
+  });
+}
+
+/* ============================ 在庫追加モード ============================ */
+let stockData=[];      // {handle,title,dateStr,optName,optValue,startMin,variantId,sku,cur,input}
+let stockMode='adjust';
+function msgTo(id,t,cls){ const m=F(id); if(!m)return; m.textContent=t; m.className='msg '+cls; if(cls==='ok') setTimeout(()=>{m.className='msg';},6000); }
+
+// --- CSV parser (quotes / CRLF / BOM 対応) ---
+function parseCSV(text){
+  if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+  const rows=[]; let row=[], cur='', q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
+      else cur+=c;
+    }else{
+      if(c==='"') q=true;
+      else if(c===','){ row.push(cur); cur=''; }
+      else if(c==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; }
+      else if(c==='\r'){ /* skip */ }
+      else cur+=c;
+    }
+  }
+  if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(r=>r.length>1 || (r.length===1&&r[0].trim()!==''));
+}
+
+function onStockFile(ev){ const f=ev.target.files[0]; if(f) readStock(f); ev.target.value=''; }
+function readStock(file){
+  if(!/\.csv$/i.test(file.name)){ msgTo('stockLoadMsg','CSV形式のファイルを選んでください（MatrixifyのExportでFormat=CSVを選択）。','err'); return; }
+  const rd=new FileReader();
+  rd.onload=e=>{ try{ ingestStock(e.target.result); }catch(err){ msgTo('stockLoadMsg','読み込みに失敗しました: '+err.message,'err'); } };
+  rd.readAsText(file);
+}
+function ingestStock(text){
+  const rows=parseCSV(text);
+  if(rows.length<2){ msgTo('stockLoadMsg','データ行が見つかりませんでした。','err'); return; }
+  const H=rows[0].map(h=>h.trim());
+  const idx=name=>H.indexOf(name);
+  const iHandle=idx('Handle'), iTitle=idx('Title'), iOptN=idx('Option1 Name'), iOptV=idx('Option1 Value'),
+        iVid=idx('Variant ID'), iSku=idx('Variant SKU'), iTicket=idx('Metafield: ticket.date [date]');
+  let iQty=idx('Variant Inventory Qty');
+  if(iQty<0) iQty=H.findIndex(h=>/^Inventory Available/i.test(h)); // ロケーション別在庫
+  if(iHandle<0 && iVid<0){ msgTo('stockLoadMsg','Handle も Variant ID も見つかりません。MatrixifyのProductsエクスポートか確認してください。','err'); return; }
+  const dateRe=/(\d{4})-(\d{2})-(\d{2})/;
+  let lastHandle='', lastTitle='';
+  stockData=[];
+  for(let r=1;r<rows.length;r++){
+    const row=rows[r];
+    const g=(i)=>i>=0&&i<row.length?String(row[i]).trim():'';
+    let handle=g(iHandle)||lastHandle; if(g(iHandle)) lastHandle=g(iHandle);
+    let title=g(iTitle)||lastTitle; if(g(iTitle)) lastTitle=g(iTitle);
+    const optValue=g(iOptV), vid=g(iVid);
+    if(!optValue && !vid) continue;           // バリアント行のみ
+    let dateStr=''; const m=(handle||'').match(dateRe); if(m) dateStr=m[0];
+    if(!dateStr && iTicket>=0){ const mm=g(iTicket).match(dateRe); if(mm) dateStr=mm[0]; }
+    const sm=optValue.match(/(\d{1,2}):(\d{2})/);
+    stockData.push({
+      handle, title, dateStr, optName:g(iOptN)||'時間', optValue,
+      startMin: sm?(+sm[1]*60+ +sm[2]):9999,
+      variantId:vid, sku:g(iSku), cur:g(iQty), input:''
+    });
+  }
+  if(!stockData.length){ msgTo('stockLoadMsg','バリアント行が見つかりませんでした。','err'); return; }
+  stockData.sort((a,b)=> a.dateStr<b.dateStr?-1:a.dateStr>b.dateStr?1:a.startMin-b.startMin);
+  // 時間枠プルダウン
+  const slots=[...new Set(stockData.map(s=>s.optValue))];
+  F('bulkSlot').innerHTML='<option value="">時間枠を選択</option>'+slots.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  // 日付フィルタ初期値
+  const dates=stockData.map(s=>s.dateStr).filter(Boolean).sort();
+  if(dates.length){ F('fFrom').value=dates[0]; F('fTo').value=dates[dates.length-1]; }
+  const noId=stockData.filter(s=>!s.variantId&&!s.sku).length;
+  F('stockPanel').style.display='block';
+  msgTo('stockLoadMsg',`${stockData.length}枠 を読み込みました（${new Set(stockData.map(s=>s.handle)).size}商品）。`+(noId?` ⚠ うち${noId}枠はVariant ID/SKUが無く更新できません。`:''),'ok');
+  renderStockGrid();
+}
+
+function setStockMode(m){
+  stockMode=m;
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on', b.dataset.mode===m));
+  F('modeHint').textContent = m==='adjust'
+    ? '現在庫に対して入力した数を足し引きします（Variant Inventory Adjust）。'
+    : '入力した数を新しい在庫として上書きします（Variant Inventory Qty）。';
+  renderStockGrid();
+}
+
+function filteredStock(){
+  const from=F('fFrom').value, to=F('fTo').value, kw=F('fKw').value.trim().toLowerCase();
+  return stockData.filter(s=>{
+    if(from && s.dateStr && s.dateStr<from) return false;
+    if(to && s.dateStr && s.dateStr>to) return false;
+    if(kw){ const hay=(s.handle+' '+s.title+' '+s.optValue).toLowerCase(); if(!hay.includes(kw)) return false; }
+    return true;
+  });
+}
+const WDx=['日','月','火','水','木','金','土'];
+function wdOf(ds){ if(!ds)return''; const d=new Date(ds+'T00:00:00'); return '（'+WDx[d.getDay()]+'）'; }
+function isChanged(s){ if(s.input==='') return false; if(stockMode==='adjust') return Number(s.input)!==0; return true; }
+
+function renderStockGrid(){
+  const list=filteredStock();
+  const inLabel = stockMode==='adjust' ? '追加する枚数(±)' : '新しい在庫';
+  let html=`<tr><th>時間枠</th><th>現在庫</th><th>${inLabel}</th><th>結果</th></tr>`;
+  let curDate=null;
+  list.forEach(s=>{
+    const gi=stockData.indexOf(s);
+    if(s.dateStr!==curDate){
+      curDate=s.dateStr;
+      html+=`<tr class="daterow"><td colspan="4">${esc(s.dateStr||'(日付不明)')}${wdOf(s.dateStr)} ／ ${esc(s.handle)}
+        <button class="btn sm ghost" style="margin-left:8px;padding:2px 8px" onclick="bulkApplyDate('${s.dateStr}')">この日にまとめて</button></td></tr>`;
+    }
+    const changed=isChanged(s);
+    const cur=s.cur===''?'—':Number(s.cur);
+    let result='';
+    if(changed){ result = stockMode==='adjust' ? (s.cur===''?'?':(Number(s.cur)+Number(s.input))) : Number(s.input); }
+    const dis = (!s.variantId && !s.sku) ? 'disabled title="ID/SKUが無く更新不可"' : '';
+    html+=`<tr class="${changed?'changed':''}">
+      <td>${esc(s.optValue)}</td>
+      <td class="num">${cur}</td>
+      <td class="num"><input type="number" data-i="${gi}" value="${esc(s.input)}" ${dis}
+        placeholder="${stockMode==='adjust'?'0':''}" oninput="onDelta(this)"></td>
+      <td class="num">${result===''?'':'<b>'+result+'</b>'}</td></tr>`;
+  });
+  F('stockTable').innerHTML=html;
+  updateStockStats();
+}
+function onDelta(inp){ stockData[+inp.dataset.i].input=inp.value; const tr=inp.closest('tr');
+  const s=stockData[+inp.dataset.i]; tr.classList.toggle('changed', isChanged(s));
+  tr.lastElementChild.innerHTML=isChanged(s)?('<b>'+(stockMode==='adjust'?(s.cur===''?'?':Number(s.cur)+Number(s.input)):Number(s.input))+'</b>'):'';
+  updateStockStats();
+}
+function bulkApply(scope){
+  const n=F('bulkN').value; if(n==='') return;
+  let target;
+  if(scope==='all') target=stockData;
+  else if(scope==='filtered') target=filteredStock();
+  else if(scope==='slot'){ const sl=F('bulkSlot').value; if(!sl){ msgTo('stockMsg','時間枠を選択してください。','err'); return; } target=stockData.filter(s=>s.optValue===sl); }
+  target.forEach(s=>{ if(s.variantId||s.sku) s.input=n; });
+  renderStockGrid();
+}
+function bulkApplyDate(ds){ const n=F('bulkN').value; if(n==='')return; stockData.filter(s=>s.dateStr===ds&&(s.variantId||s.sku)).forEach(s=>s.input=n); renderStockGrid(); }
+function clearDeltas(){ stockData.forEach(s=>s.input=''); renderStockGrid(); }
+
+function updateStockStats(){
+  const ch=stockData.filter(isChanged);
+  let totalAdd=0; if(stockMode==='adjust') ch.forEach(s=>totalAdd+=Number(s.input)||0);
+  F('stockStats').innerHTML=`<span class="pill">対象 ${ch.length} 枠</span>`+
+    (stockMode==='adjust'?`<span class="pill">合計 ${totalAdd>=0?'+':''}${totalAdd} 枚</span>`:`<span class="pill">在庫を上書き</span>`);
+  F('stockOutNote').textContent = ch.length?`${ch.length}枠を書き出します`:'変更のある枠がありません';
+}
+function downloadStockCSV(){
+  const ch=stockData.filter(isChanged);
+  if(!ch.length){ msgTo('stockMsg','追加する枚数を入力してください。','err'); return; }
+  const invCol = stockMode==='adjust' ? 'Variant Inventory Adjust' : 'Variant Inventory Qty';
+  const cols=['ID','Handle','Title','Option1 Name','Option1 Value','Variant ID','Variant SKU',invCol];
+  const lines=[cols.join(',')];
+  ch.forEach(s=>{
+    const r={'ID':'','Handle':s.handle,'Title':s.title,'Option1 Name':s.optName,'Option1 Value':s.optValue,
+      'Variant ID':s.variantId,'Variant SKU':s.sku,[invCol]:s.input};
+    lines.push(cols.map(c=>csvCell(r[c])).join(','));
+  });
+  const csv='﻿'+lines.join('\r\n');
+  download(`matrixify_stock_${stockMode}_${ch.length}rows.csv`, csv);
+  const noId=ch.filter(s=>!s.variantId&&!s.sku).length;
+  msgTo('stockMsg',`${ch.length}枠の在庫${stockMode==='adjust'?'追加':'上書き'}CSVを書き出しました。MatrixifyのImportで取り込んでください。`+(noId?` ※ID/SKUの無い${noId}枠は除外されていません、要確認。`:''),'ok');
+}
+// ドラッグ&ドロップ
+(function initDrop(){
+  const dz=document.getElementById('drop'); if(!dz) return;
+  ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('over');}));
+  dz.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) readStock(f); });
+})();
+
+/* ============================ 起動 ============================ */
+(function init(){
+  let saved=null; try{ saved=localStorage.getItem('ticketCsvTool'); }catch(e){}
+  try{ state = saved?JSON.parse(saved):defaultState(); }catch(e){ state=defaultState(); }
+  if(!state.venues||!state.venues.length) state.venues=defaultState().venues;
+  formFromState(); render();
+})();
+</script>
+</body>
+</html>
